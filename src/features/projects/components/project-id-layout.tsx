@@ -23,7 +23,7 @@ export const ProjectIdLayout = ({
         <div className="w-full h-screen flex flex-col">
             <Navbar
                 projectId={projectId} />
-            <div className="flex-1 flex-overlow-hidden">
+            <div className="flex-1 overflow-hidden">
                 <Allotment
                     className="flex-1"
                     defaultSizes={[
