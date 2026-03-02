@@ -135,7 +135,7 @@ export const Navbar = ({
                                 formatDistanceToNow(
                                     project.updatedAt,
                                     { addSuffix: true }
-                                ) : "LoadConfig..."}
+                                ) : "Not yet saved"}
                         </TooltipContent>
                     </Tooltip>
                 )
