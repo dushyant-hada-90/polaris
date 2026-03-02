@@ -56,12 +56,8 @@ export const useCreateProject = () => {
 
 export const useRenameProject = (projectId: Id<"projects">) => {
 
-    const { userId } = useAuth()
-
     return useMutation(api.projects.rename).withOptimisticUpdate(
         (localStore, args) => {
-            const now = Date.now()
-
             // Update the full list cache
             const existingProject = localStore.getQuery(api.projects.getById, {
                 id: projectId
@@ -77,7 +73,7 @@ export const useRenameProject = (projectId: Id<"projects">) => {
                 })
             }
 
-            const existingProjects = localStore.getQuery(api.projects.get);
+            const existingProjects = localStore.getQuery(api.projects.get, {});
 
             if (existingProjects !== undefined) {
                 localStore.setQuery(
@@ -91,7 +87,7 @@ export const useRenameProject = (projectId: Id<"projects">) => {
                 )
             }
 
-            const existingPartial = localStore.getQuery(api.projects.get);
+            const existingPartial = localStore.getQuery(api.projects.getPartial, { limit: 6 });
 
             if (existingPartial !== undefined) {
                 localStore.setQuery(
