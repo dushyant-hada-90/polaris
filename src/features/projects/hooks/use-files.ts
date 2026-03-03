@@ -65,35 +65,37 @@ export const useCreateFolder = () => {
     });
 };
 
-export const useRenameFile = () => {
+export const useRenameFile = ({
+    projectId,
+    parentId,
+}: {
+    projectId: Id<"projects">;
+    parentId?: Id<"files">;
+}) => {
     const mutation = useMutation(api.files.renameFile);
     return mutation.withOptimisticUpdate((localStore, args) => {
-        // We need to find which folder contains this file
-        // Since we don't know the parent without the file data, we need to get the file first
+        const currentValue = localStore.getQuery(api.files.getFolderContents, {
+            projectId,
+            parentId,
+        });
+
+        if (currentValue !== undefined) {
+            localStore.setQuery(api.files.getFolderContents, {
+                projectId,
+                parentId,
+            }, currentValue.map((file) =>
+                file._id === args.id
+                    ? { ...file, name: args.newName, updatedAt: Date.now() }
+                    : file
+            ).sort((a, b) => {
+                if (a.type === "folder" && b.type === "file") return -1;
+                if (a.type === "file" && b.type === "folder") return 1;
+                return a.name.localeCompare(b.name);
+            }));
+        }
+
         const currentFile = localStore.getQuery(api.files.getFile, { id: args.id });
-        
         if (currentFile) {
-            const currentValue = localStore.getQuery(api.files.getFolderContents, {
-                projectId: currentFile.projectId,
-                parentId: currentFile.parentId,
-            });
-
-            if (currentValue !== undefined) {
-                localStore.setQuery(api.files.getFolderContents, {
-                    projectId: currentFile.projectId,
-                    parentId: currentFile.parentId,
-                }, currentValue.map((file) =>
-                    file._id === args.id
-                        ? { ...file, name: args.newName, updatedAt: Date.now() }
-                        : file
-                ).sort((a, b) => {
-                    if (a.type === "folder" && b.type === "file") return -1;
-                    if (a.type === "file" && b.type === "folder") return 1;
-                    return a.name.localeCompare(b.name);
-                }));
-            }
-
-            // Also update the individual file query
             localStore.setQuery(api.files.getFile, { id: args.id }, {
                 ...currentFile,
                 name: args.newName,
