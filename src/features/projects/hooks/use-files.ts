@@ -2,6 +2,14 @@ import { useMutation, useQuery } from "convex/react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
 
+export const useFile = (fileId: Id<"files"> | null) => {
+    return useQuery(api.files.getFile, fileId ? { id: fileId } : "skip")
+}
+
+export const useFilePath = (fileId: Id<"files"> | null) => {
+    return useQuery(api.files.getFilePath, fileId ? { id: fileId } : "skip");
+}
+
 export const useCreateFile = () => {
     const mutation = useMutation(api.files.createFile);
     return mutation.withOptimisticUpdate((localStore, args) => {
@@ -33,6 +41,12 @@ export const useCreateFile = () => {
         }
     });
 };
+
+
+export const useUpdateFile = () => {
+    return useMutation(api.files.updateFile);
+}
+
 
 export const useCreateFolder = () => {
     const mutation = useMutation(api.files.createFolder);
@@ -109,7 +123,7 @@ export const useDeleteFile = () => {
     const mutation = useMutation(api.files.deleteFile);
     return mutation.withOptimisticUpdate((localStore, args) => {
         const currentFile = localStore.getQuery(api.files.getFile, { id: args.id });
-        
+
         if (currentFile) {
             const currentValue = localStore.getQuery(api.files.getFolderContents, {
                 projectId: currentFile.projectId,
