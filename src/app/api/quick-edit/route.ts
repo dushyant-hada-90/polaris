@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         if (!userId) {
             return NextResponse.json(
                 { error: "Unauthorized" },
-                { status: 400 }
+                { status: 403 }
             )
         }
         if (!selectedCode) {
