@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { Message, MessageAction, MessageActions, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import ky from "ky";
 import { nanoid } from "nanoid";
+import { fa } from "zod/v4/locales";
+import { PastConversationsDialog } from "./past-conversations-dialog";
 
 interface ConversationSidebarProps {
     projectId: Id<"projects">;
@@ -19,6 +21,8 @@ export const ConversationSidebar = ({
 }: ConversationSidebarProps) => {
 
     const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null)
+
+    const [pastConversationsOpen, setPastConversationsOpen] = useState(false)
     const [isPendingNewConversation, setIsPendingNewConversation] = useState(false) //tracks if this conversation is pending to be created in db 
     const createConversation = useCreateConversation()
     const conversations = useConversations(projectId)
@@ -44,7 +48,7 @@ export const ConversationSidebar = ({
 
     const handleSubmit = async (message: PromptInputMessage) => {
         if (isProcessing && !message.text) {
-            // todo await cancel
+            await handleCancel()
             setInput("")
             return
         }
@@ -88,19 +92,38 @@ export const ConversationSidebar = ({
         }
     }
 
+    const handleCancel = async () => {
+        try {
+            await ky.post("/api/messages/cancel", {
+                json: { projectId }
+            })
+        } catch (error) {
+            console.log(error)
+            toast.error("unable to cancel reuest")
+        }
+    }
+
     return (
-        <div className="flex flex-col h-full bg-sidebar">
-            <div className="h-8.75 flex items-center justify-between border-b">
-                <div className="text-sm truncate pl-3">
-                    {activeConversation?.title ?? DEFAULT_CONVERSATION_TITLE}
-                </div>
-                <div className="flex items-center px-1 gap-1">
-                    <Button
-                        size="icon-xs"
-                        variant="highlight"
-                    >
-                        <HistoryIcon className="size-3.5" />
-                    </Button>
+        <>
+            <PastConversationsDialog
+                projectId={projectId}
+                open={pastConversationsOpen}
+                onOpenChange={setPastConversationsOpen}
+                onSelect={setSelectedConversationId}
+            />
+            <div className="flex flex-col h-full bg-sidebar">
+                <div className="h-8.75 flex items-center justify-between border-b">
+                    <div className="text-sm truncate pl-3">
+                        {activeConversation?.title ?? DEFAULT_CONVERSATION_TITLE}
+                    </div>
+                    <div className="flex items-center px-1 gap-1">
+                        <Button
+                            size="icon-xs"
+                            variant="highlight"
+                            onClick={() => setPastConversationsOpen(true)}
+                        >
+                            <HistoryIcon className="size-3.5" />
+                        </Button>
 
                     <Button
                         size="icon-xs"
@@ -125,11 +148,17 @@ export const ConversationSidebar = ({
                                         <LoaderIcon className="size-4 animate-spin" />
                                         <span>Thinking ...</span>
                                     </div>
-                                ) : (
-                                    <MessageResponse>
-                                        {message.content}
-                                    </MessageResponse>
-                                )}
+                                ) : message.status === "cancelled" ?
+                                    (
+                                        <span className="text-muted-foreground italic">
+                                            Request Cancelled
+                                        </span>
+                                    )
+                                    : (
+                                        <MessageResponse>
+                                            {message.content}
+                                        </MessageResponse>
+                                    )}
                             </MessageContent>
                             {message.role === "assistant" &&
                                 message.status === "completed" &&
@@ -171,10 +200,10 @@ export const ConversationSidebar = ({
                         />
                     </PromptInputFooter>
 
-                </PromptInput>
-            </div>
-        </div >
-
+                    </PromptInput>
+                </div>
+            </div >
+        </>
     );
 
 };
