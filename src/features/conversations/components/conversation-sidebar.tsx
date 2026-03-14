@@ -103,13 +103,18 @@ export const ConversationSidebar = ({
         }
     }
 
+    const handleSelectConversation = (conversationId: Id<"conversations">) => {
+        setSelectedConversationId(conversationId)
+        setIsPendingNewConversation(false)
+    }
+
     return (
         <>
             <PastConversationsDialog
                 projectId={projectId}
                 open={pastConversationsOpen}
                 onOpenChange={setPastConversationsOpen}
-                onSelect={setSelectedConversationId}
+                onSelect={handleSelectConversation}
             />
             <div className="flex flex-col h-full bg-sidebar">
                 <div className="h-8.75 flex items-center justify-between border-b">
