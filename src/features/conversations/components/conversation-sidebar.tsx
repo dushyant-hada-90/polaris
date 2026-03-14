@@ -44,7 +44,7 @@ export const ConversationSidebar = ({
 
     const handleSubmit = async (message: PromptInputMessage) => {
         if (isProcessing && !message.text) {
-            // todo await cancel
+            await handleCancel()
             setInput("")
             return
         }
@@ -88,6 +88,17 @@ export const ConversationSidebar = ({
         }
     }
 
+    const handleCancel = async () => {
+        try {
+            await ky.post("/api/messages/cancel", {
+                json: { projectId }
+            })
+        } catch (error) {
+            console.log(error)
+            toast.error("unable to cancel reuest")
+        }
+    }
+
     return (
         <div className="flex flex-col h-full bg-sidebar">
             <div className="h-8.75 flex items-center justify-between border-b">
@@ -125,11 +136,17 @@ export const ConversationSidebar = ({
                                         <LoaderIcon className="size-4 animate-spin" />
                                         <span>Thinking ...</span>
                                     </div>
-                                ) : (
-                                    <MessageResponse>
-                                        {message.content}
-                                    </MessageResponse>
-                                )}
+                                ) : message.status === "cancelled" ?
+                                    (
+                                        <span className="text-muted-foreground italic">
+                                            Request Cancelled
+                                        </span>
+                                    )
+                                    : (
+                                        <MessageResponse>
+                                            {message.content}
+                                        </MessageResponse>
+                                    )}
                             </MessageContent>
                             {message.role === "assistant" &&
                                 message.status === "completed" &&
