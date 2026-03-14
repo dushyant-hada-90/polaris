@@ -99,10 +99,14 @@ export async function POST(request: Request) {
     );
 
     // Invoke inngest to process the message
+    //Invoke inngest to process the message
     const event = await inngest.send({
         name: "message/sent",
         data: {
             messageId: assistantMessageId,
+            conversationId,
+            projectId,
+            message,
         }
     })
     return NextResponse.json({
