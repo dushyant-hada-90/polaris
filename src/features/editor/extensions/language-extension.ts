@@ -12,10 +12,12 @@ export const getLanguageExtension = (filename: string): Extension => {
     switch (ext) {
         case "js":
             return javascript();
+        case "ts":
+            return javascript({ typescript: true })
         case "jsx":
-            return javascript({jsx:true})
+            return javascript({ jsx: true })
         case "tsx":
-            return javascript({typescript:true,jsx:true})
+            return javascript({ typescript: true, jsx: true })
         case "html":
             return html();
         case "css":
