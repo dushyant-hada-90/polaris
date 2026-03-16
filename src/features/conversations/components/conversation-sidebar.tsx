@@ -1,6 +1,6 @@
 import { CopyIcon, HistoryIcon, LoaderIcon, PlusIcon } from "lucide-react";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { DEFAULT_CONVERSATION_TITLE } from "../../../../convex/constants";
+import { DEFAULT_CONVERSATION_TITLE } from "../constants";
 import { Button } from "@/components/ui/button";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { PromptInput, PromptInputBody, PromptInputFooter, PromptInputMessage, PromptInputSubmit, PromptInputTextarea, PromptInputTools } from "@/components/ai-elements/prompt-input";
@@ -59,8 +59,8 @@ export const ConversationSidebar = ({
 
         let conversationId = activeConversationId
 
-        // If this is a pending new conversation, create it in DB first
-        if (isPendingNewConversation && conversationId) {
+        // Ensure there is a persisted conversation before posting a message.
+        if (isPendingNewConversation || !conversationId) {
             try {
                 const newConversationId = await createConversation({
                     projectId,
@@ -75,6 +75,12 @@ export const ConversationSidebar = ({
                 setIsSubmitting(false)
                 return
             }
+        }
+
+        if (!conversationId) {
+            toast.error("No active conversation found")
+            setIsSubmitting(false)
+            return
         }
 
         // trigger innges function 

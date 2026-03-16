@@ -30,7 +30,19 @@ export async function POST(request: Request) {
         )
     }
     const body = await request.json();
-    const { conversationId, message } = requestSchema.parse(body);
+    const parsed = requestSchema.safeParse(body);
+
+    if (!parsed.success) {
+        return NextResponse.json(
+            {
+                error: "Invalid request body",
+                details: parsed.error.flatten(),
+            },
+            { status: 400 }
+        );
+    }
+
+    const { conversationId, message } = parsed.data;
 
     // Call convex mutation, query
     const conversation = await convex.query(api.system.getConversationById, {
