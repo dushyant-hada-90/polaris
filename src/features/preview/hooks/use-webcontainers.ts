@@ -82,10 +82,11 @@ export const useWebContainer = ({
 
     // Fetch files from Convex (auto-updates on changes)
     const files = useFiles(projectId);
+    const hasFiles = Boolean(files && files.length > 0)
 
     // initial boot and mount
     useEffect(() => {
-        if (!enabled || !files || files.length === 0 || hasStartedRef.current) {
+        if (!enabled || !hasFiles || !files || hasStartedRef.current) {
             return
         }
         hasStartedRef.current = true
@@ -174,8 +175,9 @@ export const useWebContainer = ({
 
     }, [
         enabled,
-        files,
+        hasFiles,
         restartKey,
+        projectId,
         settings?.devCommand,
         settings?.installCommand
     ])

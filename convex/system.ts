@@ -321,6 +321,171 @@ export const createFiles = mutation({
     }
 })
 
+export const createBulkEntries = mutation({
+    args: {
+        internalKey: v.string(),
+        projectId: v.id("projects"),
+        entries: v.array(
+            v.object({
+                filename: v.string(),
+                filePath: v.string(),
+                type: v.union(v.literal("file"), v.literal("folder")),
+                content: v.optional(v.string()),
+            })
+        ),
+    },
+    handler: async (ctx, args) => {
+        validateInternalKey(args.internalKey);
+
+        const normalizePath = (path: string) =>
+            path
+                .replace(/\\/g, "/")
+                .trim()
+                .replace(/^\/+|\/+$/g, "");
+
+        const joinPath = (parentPath: string, name: string) =>
+            parentPath ? `${parentPath}/${name}` : name;
+
+        const existingFiles = await ctx.db
+            .query("files")
+            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+            .collect();
+
+        const folderIdByPath = new Map<string, Id<"files">>();
+        const siblingsByParent = new Map<string, { name: string; type: "file" | "folder" }[]>();
+
+        const getParentKey = (parentId?: Id<"files">) => parentId ?? "__root__";
+
+        for (const item of existingFiles) {
+            const key = getParentKey(item.parentId);
+            const siblings = siblingsByParent.get(key) ?? [];
+            siblings.push({ name: item.name, type: item.type });
+            siblingsByParent.set(key, siblings);
+        }
+
+        const existingFileById = new Map(existingFiles.map((item) => [item._id, item]));
+
+        const buildFolderPath = (folder: typeof existingFiles[number]) => {
+            const parts: string[] = [folder.name];
+            let currentParentId = folder.parentId;
+
+            while (currentParentId) {
+                const parent = existingFileById.get(currentParentId);
+                if (!parent) {
+                    break;
+                }
+                parts.unshift(parent.name);
+                currentParentId = parent.parentId;
+            }
+
+            return parts.join("/");
+        };
+
+        for (const item of existingFiles) {
+            if (item.type === "folder") {
+                folderIdByPath.set(buildFolderPath(item), item._id);
+            }
+        }
+
+        const entriesWithIndex = args.entries
+            .map((entry, index) => ({
+                ...entry,
+                normalizedPath: normalizePath(entry.filePath),
+                inputIndex: index,
+            }))
+            .sort((a, b) => {
+                if (a.type !== b.type) {
+                    return a.type === "folder" ? -1 : 1;
+                }
+
+                const depthA = a.normalizedPath === "" ? 0 : a.normalizedPath.split("/").length;
+                const depthB = b.normalizedPath === "" ? 0 : b.normalizedPath.split("/").length;
+
+                if (depthA !== depthB) {
+                    return depthA - depthB;
+                }
+
+                return a.inputIndex - b.inputIndex;
+            });
+
+        const resultsByIndex: {
+            filename: string;
+            filePath: string;
+            type: "file" | "folder";
+            fileId?: Id<"files">;
+            error?: string;
+        }[] = Array(args.entries.length);
+
+        for (const entry of entriesWithIndex) {
+            const filename = entry.filename.trim();
+            const normalizedPath = entry.normalizedPath;
+
+            if (!filename) {
+                resultsByIndex[entry.inputIndex] = {
+                    filename: entry.filename,
+                    filePath: entry.filePath,
+                    type: entry.type,
+                    error: "filename cannot be empty",
+                };
+                continue;
+            }
+
+            const parentId = normalizedPath === "" ? undefined : folderIdByPath.get(normalizedPath);
+
+            if (normalizedPath !== "" && !parentId) {
+                resultsByIndex[entry.inputIndex] = {
+                    filename: entry.filename,
+                    filePath: entry.filePath,
+                    type: entry.type,
+                    error: `Parent path "${entry.filePath}" not found`,
+                };
+                continue;
+            }
+
+            const parentKey = getParentKey(parentId);
+            const siblings = siblingsByParent.get(parentKey) ?? [];
+            const duplicate = siblings.find(
+                (sibling) => sibling.name === filename && sibling.type === entry.type
+            );
+
+            if (duplicate) {
+                resultsByIndex[entry.inputIndex] = {
+                    filename: entry.filename,
+                    filePath: entry.filePath,
+                    type: entry.type,
+                    error: `${entry.type === "folder" ? "Folder" : "File"} already exists`,
+                };
+                continue;
+            }
+
+            const fileId = await ctx.db.insert("files", {
+                projectId: args.projectId,
+                parentId,
+                name: filename,
+                type: entry.type,
+                content: entry.type === "file" ? entry.content ?? "" : undefined,
+                updatedAt: Date.now(),
+            });
+
+            siblings.push({ name: filename, type: entry.type });
+            siblingsByParent.set(parentKey, siblings);
+
+            if (entry.type === "folder") {
+                folderIdByPath.set(joinPath(normalizedPath, filename), fileId);
+            }
+
+            resultsByIndex[entry.inputIndex] = {
+                filename: entry.filename,
+                filePath: entry.filePath,
+                type: entry.type,
+                fileId,
+            };
+        }
+
+        return resultsByIndex;
+    }
+})
+
 
 export const createFolder = mutation({
     args: {
