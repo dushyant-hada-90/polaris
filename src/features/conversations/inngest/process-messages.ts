@@ -9,7 +9,7 @@ import { DEFAULT_CONVERSATION_TITLE } from "../constants";
 import { createListFilesTool } from "./tools/list-files";
 import { createReadFilesTool } from "./tools/read-files";
 import { createUpdateFileTool } from "./tools/update-file";
-import { createCreateFilesTool } from "./tools/create-files";
+import { createCreateFilesTool } from "./tools/create-files-bulk";
 import { createCreateFolderTool } from "./tools/create-folder";
 import { createRenameFileTool } from "./tools/rename-file";
 import { createDeleteFilesTool } from "./tools/delete-files";
@@ -199,10 +199,10 @@ export const processMessage = inngest.createFunction(
                     createReadFilesTool({ internalKey }),
                     createUpdateFileTool({ internalKey }),
                     createCreateFilesTool({ internalKey, projectId }),
-                    createCreateFolderTool({ internalKey, projectId }),
+                    // createCreateFolderTool({ internalKey, projectId }),
                     createRenameFileTool({ internalKey }),
                     createDeleteFilesTool({ internalKey }),
-                    createScrapeUrlsTool()
+                    createScrapeUrlsTool(),
 
                 ],
             })
@@ -230,8 +230,47 @@ export const processMessage = inngest.createFunction(
             }
         })
 
+        const isInvalidRequestError = (error: unknown) => {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return (
+                errorMessage.includes("invalid_request_error") ||
+                errorMessage.includes('"type":"invalid_request_error"') ||
+                errorMessage.includes("\"type\": \"invalid_request_error\"")
+            );
+        };
 
-        const result = await network.run(message)
+        const getErrorMessage = (error: unknown) =>
+            error instanceof Error ? error.message : String(error);
+
+        let result;
+        let lastInvalidRequestError = "";
+        let networkInput = message;
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                result = await network.run(networkInput)
+                break;
+            } catch (error) {
+                if (isInvalidRequestError(error)) {
+                    lastInvalidRequestError = getErrorMessage(error);
+
+                    if (attempt === 0) {
+                        networkInput = `${message}\n\nSYSTEM NOTICE: Your previous tool call failed with type=invalid_request_error. Error details: ${lastInvalidRequestError}\n\nIn your next step, fix the tool arguments and retry only with a valid payload shape.`;
+                        continue;
+                    }
+
+                    throw new NonRetriableError(lastInvalidRequestError);
+                }
+
+                throw error;
+            }
+        }
+
+        if (!result) {
+            throw new NonRetriableError(
+                lastInvalidRequestError || "Agent run failed before producing a result"
+            );
+        }
 
         // Extract the assistant's text response from the last agent result
         const lastResult = result.state.results.at(-1);
