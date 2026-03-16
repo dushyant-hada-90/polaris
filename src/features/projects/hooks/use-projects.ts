@@ -103,3 +103,8 @@ export const useRenameProject = (projectId: Id<"projects">) => {
         }
     )
 }
+
+export const useUpdateProjectSettings = () => {
+    // todo add optimistic mutation
+    return useMutation(api.projects.updateSettings)
+}
