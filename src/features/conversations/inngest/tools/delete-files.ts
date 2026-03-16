@@ -19,13 +19,15 @@ export const createDeleteFilesTool = ({ internalKey }: DeleteFilesToolOptions) =
     return createTool({
         name: "deleteFiles",
         description:
-            "Delete files or folders from the project. If deleting a folder, all contents will be deleted recursively. Returns a summary of deleted and failed to delete files, or an error message if it fails.",
+            "Delete files or folders from the project. If deleting a folder, all contents are deleted recursively. Returns a plain text line-by-line summary of deleted items, or an error message.",
         parameters: z.object({
             fileIds: z
                 .array(z.string())
                 .describe("Array of file or folder IDs to delete"),
         }),
-        handler: async (params, { step: toolStep }) => {
+        handler: async (params, { step: toolStep, network }) => {
+            const iteration = network?.state?.results?.length ?? 0
+            const stepId = `tool-${iteration + 1}-delete-files`
             const parsed = paramsSchema.safeParse(params)
             if (!parsed.success) {
                 return `Error : ${parsed.error.issues[0].message}`
@@ -59,7 +61,7 @@ export const createDeleteFilesTool = ({ internalKey }: DeleteFilesToolOptions) =
 
 
             try {
-                return await toolStep?.run("delete-files", async () => {
+                return await toolStep?.run(stepId, async () => {
                     const results: string[] = []
                     for (const file of filesToDelete) {
                         await convex.mutation(api.system.deleteFile, {

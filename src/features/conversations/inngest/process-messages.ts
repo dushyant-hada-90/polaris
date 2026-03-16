@@ -188,9 +188,9 @@ export const processMessage = inngest.createFunction(
             return msgs;
         };
 
-        const getCodingAgent = (iteration: Number) => {
+        const getCodingAgent = (iteration: number) => {
             const codingAgent = createAgent({
-                name: `polaris-${iteration}`,
+                name: `polaris-${iteration + 1}`,
                 description: "An expert AI coding assistant",
                 system: systemPrompt,
                 model: codingModel,
@@ -201,7 +201,7 @@ export const processMessage = inngest.createFunction(
                     createCreateFilesTool({ internalKey, projectId }),
                     createCreateFolderTool({ internalKey, projectId }),
                     createRenameFileTool({ internalKey }),
-                    createDeleteFilesTool({internalKey}),
+                    createDeleteFilesTool({ internalKey }),
                     createScrapeUrlsTool()
 
                 ],

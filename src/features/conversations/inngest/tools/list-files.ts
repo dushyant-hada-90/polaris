@@ -14,6 +14,8 @@ type Item = {
 
 type ItemWithPath = Item & { path: string }
 
+const paramsSchema = z.object({})
+
 export function addPaths(fileList: Item[]): ItemWithPath[] {
     const map = new Map<string, Item>()
     fileList.forEach(f => map.set(f.id, f))
@@ -62,11 +64,18 @@ export const createListFilesTool = ({ internalKey, projectId }: ReadFilesToolOpt
     return createTool({
         name: "listFiles",
         description:
-            "List all files and folders in the project. Returns an array of objects containing names, IDs, types, parentId, and resolved paths for each item, or an error if it fails. Items with parentId: null are at root level. Use the parentId to understand the folder structure - items with the same parentId are in the same folder.",
+            "List all files and folders in the project. Returns a JSON string array of objects with id, name, type, parentId, and resolved path for each item, or an error message.",
         parameters: z.object({}),
-        handler: async (_, { step: toolStep }) => {
+        handler: async (params, { step: toolStep, network }) => {
+            const iteration = network?.state?.results?.length ?? 0
+            const stepId = `tool-${iteration + 1}-list-files`
+            const parsed = paramsSchema.safeParse(params)
+            if (!parsed.success) {
+                return `Error : ${parsed.error.issues[0].message}`
+            }
+
             try {
-                return await toolStep?.run("list-files", async () => {
+                return await toolStep?.run(stepId, async () => {
                     const files = await convex.query(api.system.getProjectFiles, {
                         internalKey,
                         projectId,

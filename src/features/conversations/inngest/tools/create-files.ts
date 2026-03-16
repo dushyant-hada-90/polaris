@@ -26,7 +26,7 @@ export const createCreateFilesTool = ({ internalKey, projectId }: CreateFilesToo
     return createTool({
         name: "createFiles",
         description:
-            "Create multiple files at once in the same folder. Use this to batch create files that share the same parent folder. More efficient than creating files one by one. Returns a summary of created and failed files, or an error message if it fails.",
+            "Create multiple files at once in the same folder.Use this to batch create files that share the same parent folder. More efficient than creating files one by one. Returns a plain text summary listing how many files were created, which names succeeded, and which names failed with reasons.",
         parameters: z.object({
             parentId: z
                 .string()
@@ -42,7 +42,9 @@ export const createCreateFilesTool = ({ internalKey, projectId }: CreateFilesToo
                 )
                 .describe("Array of files to create")
         }),
-        handler: async (params, { step: toolStep }) => {
+        handler: async (params, { step: toolStep, network }) => {
+            const iteration = network?.state?.results?.length ?? 0
+            const stepId = `tool-${iteration + 1}-create-files`
             const parsed = paramsSchema.safeParse(params)
             if (!parsed.success) {
                 return `Error : ${parsed.error.issues[0].message}`
@@ -52,7 +54,7 @@ export const createCreateFilesTool = ({ internalKey, projectId }: CreateFilesToo
 
 
             try {
-                return await toolStep?.run("create-files", async () => {
+                return await toolStep?.run(stepId, async () => {
                     let resolvedParentId: Id<"files"> | undefined
 
                     if (parentId && parentId !== "") {
@@ -88,7 +90,7 @@ export const createCreateFilesTool = ({ internalKey, projectId }: CreateFilesToo
                     }
 
                     if (failed.length > 0) {
-                        response += `.Failed: ${failed.map((r) => `${r.name} (${r.error})`).join(", ")}`
+                        response += `. Failed: ${failed.map((r) => `${r.name} (${r.error})`).join(", ")}`
                     }
                     return response
                 })

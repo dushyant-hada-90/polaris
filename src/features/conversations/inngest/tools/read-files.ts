@@ -17,11 +17,13 @@ const paramsSchema = z.object({
 export const createReadFilesTool = ({ internalKey }: ReadFilesToolOptions) => {
     return createTool({
         name: "readFiles",
-        description: "Read file content from projects. CRITICAL: This tool ONLY accepts file IDs, NOT file names or paths. If you only know a file name, you MUST use the listFiles tool first to get its ID. Returns an array of file contents corresponding to the provided IDs, or an error message if it fails.",
+        description: "Read file content from project files by ID only. Returns a JSON string array where each item has id, name, and content, or an error message.",
         parameters: z.object({
             fileIds: z.array(z.string()).describe("Array of unique file IDs to read (e.g., 'jd7x...'). NEVER pass file names (like 'index.ts') here! Use listFiles first if you don't know the ID.")
         }),
-        handler: async (params, { step: toolStep }) => {
+        handler: async (params, { step: toolStep, network }) => {
+            const iteration = network?.state?.results?.length ?? 0
+            const stepId = `tool-${iteration + 1}-read-files`
             const parsed = paramsSchema.safeParse(params)
             if (!parsed.success) {
                 return `Error : ${parsed.error.issues[0].message}`
@@ -32,7 +34,7 @@ export const createReadFilesTool = ({ internalKey }: ReadFilesToolOptions) => {
 
 
             try {
-                return await toolStep?.run("read-files", async () => {
+                return await toolStep?.run(stepId, async () => {
                     const results: { id: string; name: string; content: string }[] = []
 
                     // Fast fail if it looks like the agent passed a filename

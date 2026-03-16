@@ -14,11 +14,13 @@ export const createScrapeUrlsTool = () => {
     return createTool({
         name: "scrapeUrls",
         description:
-            "Scrape content from URLs to get documentation or reference material.Use this when the user provides URLs or references external documentation.Returns markdown content from the scraped pages.",
+            "Scrape content from URLs for documentation and reference material. Returns a JSON string array where each item includes url and markdown content (or a per-URL failure message).",
         parameters: z.object({
             urls: z.array(z.string()).describe("Array of URLs to scrape for content"),
         }),
-        handler: async (params, { step: toolStep }) => {
+        handler: async (params, { step: toolStep, network }) => {
+            const iteration = network?.state?.results?.length ?? 0
+            const stepId = `tool-${iteration + 1}-scrape-urls`
             const parsed = paramsSchema.safeParse(params)
             if (!parsed.success) {
                 return `Error: ${parsed.error.issues[0].message}`
@@ -27,7 +29,7 @@ export const createScrapeUrlsTool = () => {
             const { urls } = parsed.data
 
             try {
-                return await toolStep?.run("scrape-urls", async () => {
+                return await toolStep?.run(stepId, async () => {
                     const results: { url: string; content: string }[] = []
                     for (const url of urls) {
                         try {

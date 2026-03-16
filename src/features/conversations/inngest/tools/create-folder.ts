@@ -18,7 +18,7 @@ const paramsSchema = z.object({
 export const createCreateFolderTool = ({ internalKey, projectId }: CreateFolderToolOptions) => {
     return createTool({
         name: "createFolder",
-        description: "Create a new folder in the project. Returns a success message containing the new folder ID, or an error message if it fails.",
+        description: "Create a new folder in the project. Returns a plain text success message containing the created folder ID, or an error message.",
         parameters: z.object({
             name: z.string().describe("The name of the folder to create"),
             parentId: z
@@ -27,7 +27,9 @@ export const createCreateFolderTool = ({ internalKey, projectId }: CreateFolderT
                     "The ID (not name) of the parent folder from listFiles, or empty string for root level"
                 )
         }),
-        handler: async (params, { step: toolStep }) => {
+        handler: async (params, { step: toolStep, network }) => {
+            const iteration = network?.state?.results?.length ?? 0
+            const stepId = `tool-${iteration + 1}-create-folder`
             const parsed = paramsSchema.safeParse(params)
             if (!parsed.success) {
                 return `Error : ${parsed.error.issues[0].message}`
@@ -37,7 +39,7 @@ export const createCreateFolderTool = ({ internalKey, projectId }: CreateFolderT
 
 
             try {
-                return await toolStep?.run("create-Folder", async () => {
+                return await toolStep?.run(stepId, async () => {
                     let resolvedParentId: Id<"files"> | undefined
 
                     if (parentId && parentId !== "") {
@@ -54,7 +56,7 @@ export const createCreateFolderTool = ({ internalKey, projectId }: CreateFolderT
                                 return `Error: The ID "${parentId}" is a file, not a folder.Use a folder ID as parentId.`;
                             }
                         } catch (error) {
-                            return `Error: Invalid parentId "${parentId}" Use listFolder to get valid folder IDs, or use empty string for root level.`
+                            return `Error: Invalid parentId "${parentId}" Use listFiles to get valid folder IDs, or use empty string for root level.`
                         }
                     }
                     const folderId = await convex.mutation(api.system.createFolder, {

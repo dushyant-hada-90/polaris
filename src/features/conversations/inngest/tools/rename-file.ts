@@ -16,18 +16,18 @@ const paramsSchema = z.object({
 export const createRenameFileTool = ({ internalKey }: RenameFileToolOptions) => {
     return createTool({
         name: "renameFile",
-        description: "Rename a file or folder (id remins same only the name is updated). Returns a success message if the Rename was successful, or an error message if it fails.",
+        description: "Rename a file or folder while keeping the same ID. Returns a plain text success message that includes old and new names, or an error message.",
         parameters: z.object({
             fileId: z.string().describe("The ID of the file to Rename"),
             newName: z.string().describe("The new name for the file or folder"),
         }),
-        handler: async (params, { step: toolStep ,network}) => {
+        handler: async (params, { step: toolStep, network }) => {
 
             // 2. Grab the current network loop count (safely fallback to 0)
             const iteration = network?.state?.results?.length ?? 0;
 
             // 3. Combine Iteration + Arguments for a 100% unique, deterministic ID
-            const stepId = `rename-files-iter-${iteration}`; //upgrade the identifier when project upgrades to parallel execution
+            const stepId = `tool-${iteration + 1}-rename-file`;
             const parsed = paramsSchema.safeParse(params)
             if (!parsed.success) {
                 return `Error : ${parsed.error.issues[0].message}`
@@ -58,10 +58,10 @@ export const createRenameFileTool = ({ internalKey }: RenameFileToolOptions) => 
                         newName,
                     })
 
-                    return `file "${file.name}" Renamed successfully to "${newName}`
+                    return `file "${file.name}" renamed successfully to "${newName}"`
                 })
             } catch (error) {
-                return `Error updating files: ${error instanceof Error ? error.message : "Unknown error"}`
+                return `Error renaming file: ${error instanceof Error ? error.message : "Unknown error"}`
             }
         }
     })

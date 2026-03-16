@@ -16,12 +16,14 @@ const paramsSchema = z.object({
 export const createUpdateFileTool = ({ internalKey }: UpdateFileToolOptions) => {
     return createTool({
         name: "updateFile",
-        description: "Update the content of an existing file. Returns a success message if the update was successful, or an error message if it fails.",
+        description: "Update the content of an existing file by file ID. Returns a plain text success message with the updated file name, or an error message.",
         parameters: z.object({
             fileId: z.string().describe("The ID of the file to update"),
             content: z.string().describe("The new content for the file"),
         }),
-        handler: async (params, { step: toolStep }) => {
+        handler: async (params, { step: toolStep, network }) => {
+            const iteration = network?.state?.results?.length ?? 0
+            const stepId = `tool-${iteration + 1}-update-file`
             const parsed = paramsSchema.safeParse(params)
             if (!parsed.success) {
                 return `Error : ${parsed.error.issues[0].message}`
@@ -51,7 +53,7 @@ export const createUpdateFileTool = ({ internalKey }: UpdateFileToolOptions) => 
 
 
             try {
-                return await toolStep?.run("update-files", async () => {
+                return await toolStep?.run(stepId, async () => {
                     await convex.mutation(api.system.updateFile, {
                         internalKey,
                         fileId: fileId as Id<"files">,
