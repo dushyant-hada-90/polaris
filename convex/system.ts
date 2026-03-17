@@ -430,6 +430,16 @@ export const createBulkEntries = mutation({
                 continue;
             }
 
+            if (/[/\\]/.test(filename)) {
+                resultsByIndex[entry.inputIndex] = {
+                    filename: entry.filename,
+                    filePath: entry.filePath,
+                    type: entry.type,
+                    error: `filename "${entry.filename}" must not contain slashes — put the directory path in filePath instead`,
+                };
+                continue;
+            }
+
             const parentId = normalizedPath === "" ? undefined : folderIdByPath.get(normalizedPath);
 
             if (normalizedPath !== "" && !parentId) {
